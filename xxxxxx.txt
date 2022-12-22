@@ -180,8 +180,8 @@ cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
 加入 nodes
 kubeadm token create --print-join-command
-kubeadm join 172.25.138.160:6443 --token abcdef.0123456789abcdef \
-    --discovery-token-ca-cert-hash sha256:9bf9a74bb99435ec0e8fb6c961453987b033922a49a17b05456dc1c9ab10e5fd
+kubeadm join 192.168.137.131:6443 --token abcdef.0123456789abcdef \
+    --discovery-token-ca-cert-hash sha256:8bf45224b9c06469fe6b5295dad047ee5694def222f21d1304d13250509485d7
 
 网络:
 calio:
@@ -198,7 +198,7 @@ spec:
     - port: 443
       targetPort: 8443
       nodePort: 30012
-kubectl apply -f recommended.yaml
+kubectl apply -f recommended204.yaml
 
 服务状态
 kubectl get all -n kubernetes-dashboard
@@ -237,6 +237,18 @@ kubectl apply -n argo -f https://raw.githubusercontent.com/argoproj/argo-workflo
 或者
 kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/download/v3.2.8/install.yaml
 
+跳过登录
+kubectl patch deployment \
+  argo-server \
+  --namespace argo \
+  --type='json' \
+  -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": [
+  "server",
+  "--auth-mode=server"
+]}]'
+
+
+
 # 客户端  https://argoproj.github.io/argo-workflows/argo-server/#access-the-argo-workflows-ui
 # Download the binary
 curl -sLO https://github.com/argoproj/argo-workflows/releases/download/v3.2.8/argo-linux-amd64.gz
@@ -262,8 +274,14 @@ spec:
 
   sessionAffinity: None
   type: NodePort
+权限问题
+创建一个有权限的role
+kubectl create role pod-patcher --verb=get --verb=list --verb=watch --verb=patch --verb=update --verb=create --resource=pods,services,deployments -n argo
+绑定到default
 
+kubectl create rolebinding default-pod-patcher --role=pod-patcher --serviceaccount=argo:default --namespace=argo
 
+kubectl get all -n argo
 
 存储
 nfs
@@ -288,7 +306,7 @@ showmount -e localhost
 yum install -y nfs-utils rpcbind
 挂载
 mkdir -p /nfs/data
-mount -t nfs 172.25.138.162:/nfs /nfs/data
+mount -t nfs 192.168.137.131:/nfs /nfs/data
 查看
 df -Th
 取消挂载
